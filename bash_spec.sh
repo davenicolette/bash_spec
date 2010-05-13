@@ -1,6 +1,6 @@
 #!/bin/bash
 
-__version='0.0.1'
+__version='0.0.3'
 
 clear
 datestamp=$(date +%Y-%m-%d)
@@ -41,19 +41,19 @@ function __fail()
     let __specs_failed=__specs_failed+1
 }
 
-function __pending()
-{
-    echo -e '\E[30;43mPENDING'
-    tput sgr0
-    let __specs_pending=__specs_pending+1
-}
-
 function __display_spec_name_if_different_from_last()
 {
     if [ "$__spec_name" != "$__last_spec_name" ]; then
         __last_spec_name="$__spec_name"
-        echo "$__spec_name"
+        echo
+        echo "It $__spec_name"
     fi
+}
+
+function pending()
+{
+    __is_pending='true'
+    it "$@"
 }
 
 function called()
@@ -80,6 +80,7 @@ function should()
     __not=
     __comparator='=='
     if [ "$__is_pending" == 'true' ]; then
+        __is_pending=
         return
     fi
     next_function="$1"
@@ -98,6 +99,10 @@ function not()
 
 function be() 
 {
+    if [ "$__is_pending" == 'true' ]; then
+        __is_pending=
+        return
+    fi
     __expected="$1"
     __actual="$2"
     __display_spec_name_if_different_from_last
@@ -113,6 +118,9 @@ function be()
 
 function be_empty() 
 {
+    if [ "$__is_pending" == 'true' ]; then
+        return
+    fi
     __expression="$1"
     __actual="$2"
     __display_spec_name_if_different_from_last
@@ -138,18 +146,20 @@ function match()
     else
         __fail
     fi
+    __is_pending='false'
 }
 
-function spec()
+function it()
 {
-    __is_pending=
-    if [ "$1" == 'pending' ]; then
-        __is_pending='true'
-        echo $2
+    if [ "$__is_pending" == 'true' ]; then
+        echo
+        echo "It $2"
         __tabs 1
         echo -n "(not run)"
         __tabs 5
-        __pending
+        echo -e '\E[30;43mPENDING'
+        tput sgr0
+        let __specs_pending=__specs_pending+1
     else
         let __specs_run=__specs_run+1
         __spec_name=$1
@@ -167,7 +177,6 @@ function scenario()
 {
   echo
   echo "Scenario: $1"
-  echo
 }
 
 function spec_statistics()
